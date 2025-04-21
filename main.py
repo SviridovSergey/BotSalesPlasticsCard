@@ -1,6 +1,12 @@
 import logging
 import telebot
+import os
+import time
+import re
+import threading
+from contextlib import contextmanager
 from telebot import types
+from PIL import Image,ImageDraw,ImageFont
 
 # Настройка логирования
 logging.basicConfig(
@@ -253,6 +259,111 @@ logging.info("Buttons for choise of plastic are initialized")
 markup_plastic.add(button_plastic_1,button_plastic_2,button_plastic_3,button_plastic_4)
 logging.info("Buttons are pushed  to telegram(choise of plastic)")
 
+BASE_IMAGE_DIR = "C:\\Users\\abcda\\vscode\\fulprojects\\tgbot\\image"
+MAX_FILE_AGE=10
+TEMP_FILE_PATTERN=re.compile(r"^\d+_\w+\.png$")  # Например: 1231091537_card.png)
+
+if not os.path.exists(BASE_IMAGE_DIR):
+    os.makedirs("image")
+
+base_image = {
+    "Белый": os.path.join(BASE_IMAGE_DIR, "white_base.jpg"),
+    "Золото": os.path.join(BASE_IMAGE_DIR, "gold_base.jpg"),
+    "Серебро": os.path.join(BASE_IMAGE_DIR, "silver_base.jpg"),
+    "Прозрачный": os.path.join(BASE_IMAGE_DIR, "transparent_base.jpg")
+}
+
+extra_icons = {
+    "Штрих-код": os.path.join(BASE_IMAGE_DIR, "barcode.png"),
+    "Магнитная полоса с кодированием": os.path.join(BASE_IMAGE_DIR, "magnetic_strip.png"),
+    "Печатный номер": os.path.join(BASE_IMAGE_DIR, "print_number.png"),
+    "Отверстия в карте (за каждое)": os.path.join(BASE_IMAGE_DIR, "hole.png"),
+    "Магнитный винил (Магниты)": os.path.join(BASE_IMAGE_DIR, "magnetic_vinyl.png"),
+    "Фактурное покрытие": os.path.join(BASE_IMAGE_DIR, "texture.png"),
+    "Эмбоссирование и типирование": os.path.join(BASE_IMAGE_DIR, "emboss.png"),
+    "Тиснение (фальгирование)": os.path.join(BASE_IMAGE_DIR, "foil.png"),
+    "Скретч-полосса (стираемый слой)": os.path.join(BASE_IMAGE_DIR, "scratch.png"),
+    "Полоса для подписи": os.path.join(BASE_IMAGE_DIR, "signature.png")
+}
+
+def periodic_cleanup():
+    while True:
+        try:
+            cleanup_temp_file()
+            time.sleep(10)
+        except Exception as e:
+            logging.error(f"Error during periodic cleanup: {e}")
+
+@contextmanager
+def temporary_file(path):
+    try:
+        yield path
+    finally:
+        if os.path.exists(path) and TEMP_FILE_PATTERN.match(os.path.basename(path)):
+            try:
+                os.remove()
+                logging.info(f"Auto-deleted temporary file: {path}")
+            except Exception as e:
+                logging.error(f"Error auto-deleting file {path} : {e}")
+
+def cleanup_temp_file():
+    current_time=time.time()
+    for filename in os.listdir("image"):
+        file_path=os.path.join("image",filename)
+
+        if os.path.isfile(file_path) and TEMP_FILE_PATTERN.match(filename):
+            if (current_time - os.path.getctime(file_path)) > MAX_FILE_AGE:
+                try:
+                    os.remove(file_path)
+                    logging.info(f"Deleted temporary file : {file_path}")
+                except Exception as e:
+                    logging.error(f"Error deleting file {file_path} : {e}")
+
+
+def create_placeholder(color, size = (600,400)):
+    image=Image.new("RGBA", size,color)
+    draw=ImageDraw.Draw(image)
+    draw.rectangle([10,10,size[0]-10, size[1]-10], outline="black", width=2)
+    return image
+
+def create_card_image(chat_id):
+    state = user_state.get(chat_id)
+    # Создаем новое изображение на основе выбранного пластика
+    base_image_path = base_image.get(state["plastic"])
+    
+    # Проверяем существование файла
+    if not base_image_path or not os.path.exists(base_image_path):
+        logging.error(f"Base image for plastic '{state['plastic']}' not found")
+        if state["plastic"]=="Блеый":
+            card_image=create_placeholder((255,255,255))
+        elif state["plastic"]=="Золото":
+            card_image=create_placeholder((212,175,55))
+        elif state["plastic"]=="Серербро":
+            card_image=create_placeholder((192,192,192))
+        elif state["plastic"]=="Прозрачный":
+            card_image=create_placeholder((200,200,200,128))
+        else:
+            card_image=create_placeholder((255,255,255))
+    else:
+        card_image=Image.open(base_image_path).convert("RGBA")
+    
+    card_image = Image.open(base_image_path).convert("RGBA")
+    draw = ImageDraw.Draw(card_image)
+    
+    # Добавляем дополнительные параметры
+    y_offset = 50
+    for extra in state["extras"]:
+        icon_path = extra_icons.get(extra)
+        if icon_path and os.path.exists(icon_path):
+            icon = Image.open(icon_path).convert("RGBA")
+            card_image.paste(icon, (50, y_offset), icon)
+            y_offset += 50
+    
+    result_path = f'image/{chat_id}_card.png'
+    card_image.save(result_path)
+    return result_path
+
+
 # Обработчик команды /start
 @bot.message_handler(commands=["start"])
 def send_welcome(message):
@@ -297,7 +408,7 @@ def handle_quantity(message):
 @bot.message_handler(func=lambda message: message.text in [
     "Белый",
     "Золото",
-    "Серебряно",
+    "Серебро",
     "Прозрачный"
 ])
 def handle_plastic(message):
@@ -417,21 +528,26 @@ def calculate_cost(chat_id):
     if not state or not state["quantity"] or not state["plastic"]:
         bot.send_message(chat_id, "Вы не выбрали все параметры. Попробуйте снова.")
         return
-
-    # Базовая стоимость пластика
+    
     base_price = prices[state["quantity"]][state["plastic"]]
     total_cost = base_price
-
-    # Добавляем стоимость дополнительных элементов
+    
     for extra in state["extras"]:
         extra_price = prices[state["quantity"]].get(extra, 0)
         if isinstance(extra_price, str):
             bot.send_message(chat_id, f"Элемент '{extra}' не имеет фиксированной цены.")
             continue
         total_cost += extra_price
-
-    # Отправляем итоговую стоимость
-    bot.send_message(chat_id, f"Итоговая стоимость: {total_cost} Р")
+    
+    try:
+        image_path = create_card_image(chat_id)
+        with temporary_file(image_path) as photo_path:
+            with open(photo_path, 'rb') as photo:
+                bot.send_photo(chat_id, photo, caption=f"Итоговая стоимость: {total_cost} Р")
+    except Exception as e:
+        logging.error(f"Error creating image: {e}")
+        bot.send_message(chat_id, f"Итоговая стоимость: {total_cost} Р")
+    
     logging.info(f"User {chat_id} calculated total cost: {total_cost}")
 
 # Обработчик ошибок
@@ -439,6 +555,9 @@ def calculate_cost(chat_id):
 def handle_error(message):
     bot.reply_to(message, "Неизвестная команда. Пожалуйста, используйте кнопки.")
     logging.error(f"Unknown command received: {message.text}")
+
+cleanup_thread=threading.Thread(target=periodic_cleanup,daemon=True)
+cleanup_thread.start()
 
 # Основная функция запуска бота
 def main() -> None:
@@ -448,6 +567,7 @@ def main() -> None:
 
     # Запускаем polling
     logger.info("Bot started with polling")
+    cleanup_temp_file()
     bot.polling()
 
 if __name__ == "__main__":
