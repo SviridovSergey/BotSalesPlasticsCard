@@ -288,10 +288,9 @@ extra_icons = {
     "Магнитная полоса с кодированием": os.path.join(BASE_IMAGE_DIR, "magnetic_strip.png"),
     "Печатный номер": os.path.join(BASE_IMAGE_DIR, "print_number.png"),
     "Отверстия в карте (за каждое)": os.path.join(BASE_IMAGE_DIR, "hole.png"),
-    "Магнитный винил (Магниты)" : os.path.join(BASE_IMAGE_DIR, "magnetic_strip.png"),
     "Фактурное покрытие": os.path.join(BASE_IMAGE_DIR, "texture.png"),
     "Эмбоссирование и типирование": os.path.join(BASE_IMAGE_DIR, "emboss.png"),
-    "Тиснение (фальгирование)": 0,
+    "Тиснение (фальгирование)": os.path.join(BASE_IMAGE_DIR, ""),
     "Скретч-полосса (стираемый слой)": os.path.join(BASE_IMAGE_DIR, "scratch.png"),
     "Полоса для подписи": os.path.join(BASE_IMAGE_DIR, "signature.png")
 }
@@ -377,12 +376,10 @@ def create_card_image(chat_id):
         "Магнитная полоса с кодированием": (0, card_height_px - 20),  # Внизу
         "Печатный номер": (50, card_height_px - 100),  # Под магнитной полосой
         "Отверстия в карте (за каждое)": (card_width_px - 150, card_height_px // 2),  # Справа по центру
-        "Магнитный винил (Магниты)": (card_width_px - 150, card_height_px - 100),  # Справа внизу
         "Фактурное покрытие": (50, 50),  # Слева сверху
         "Эмбоссирование и типирование": (card_width_px // 2, 50),  # По центру сверху
         "Тиснение (фальгирование)": (card_width_px // 2, card_height_px // 2),  # Центр
         "Скретч-полосса (стираемый слой)": (card_width_px - 150, 50),  # Справа сверху
-        "Полоса для подписи": (50, card_height_px // 2)  # Слева по центру
     }
     
     # Размеры иконок
@@ -404,9 +401,8 @@ def create_card_image(chat_id):
             position = element_positions.get(extra, (50, 50))  # По умолчанию (50, 50)
             
             # Накладываем иконку на базовое изображение
-            card_image.paste(icon, position, icon)
             
-            # Специфическая логика для некоторых элементов
+            # Специфическая логика для элементов
             if extra == "Магнитная полоса с кодированием":
                 magnetic_strip_path = extra_icons.get("Магнитная полоса с кодированием")
                 if magnetic_strip_path and os.path.exists(magnetic_strip_path):
@@ -424,55 +420,76 @@ def create_card_image(chat_id):
                     magnetic_strip = Image.new("RGBA", (card_width_px, 20), color=(0, 0, 0, 255))
                     card_image.paste(magnetic_strip, (0, card_height_px - 20), magnetic_strip)
             
-            elif extra == "Отверстия в карте (за каждое)":
-                hole_icon_path = extra_icons.get("Отверстия в карте (за каждое)")
-                if hole_icon_path and os.path.exists(hole_icon_path):
-                    try:
-                        # Открываем иконку отверстий
-                        hole_icon = Image.open(hole_icon_path).convert("RGBA")
-                        # Масштабируем до нужных размеров
-                        hole_icon = hole_icon.resize((30, 30))
-                        # Размещаем несколько отверстий
-                        for i in range(3):  # Пример: добавляем 3 отверстия
-                            hole_position = (
-                                position[0] + i * 40,
-                                position[1]
-                            )
-                            card_image.paste(hole_icon, hole_position, hole_icon)
-                    except Exception as e:
-                        logging.error(f"Error processing holes: {e}")
-            
             elif extra == "Скретч-полосса (стираемый слой)":
                 scratch_icon_path = extra_icons.get("Скретч-полосса (стираемый слой)")
                 if scratch_icon_path and os.path.exists(scratch_icon_path):
                     try:
                         # Открываем иконку скретч-полосы
                         scratch_icon = Image.open(scratch_icon_path).convert("RGBA")
+                        
                         # Масштабируем до нужных размеров
                         scratch_icon = scratch_icon.resize((150, 30))
-                        # Размещаем в указанной позиции
-                        card_image.paste(scratch_icon, position, scratch_icon)
+                        
+                        # Параметры размещения скретч-полоссы
+                        horizontal_offset = 10  # Отступ от правого края
+                        vertical_offset = 10   # Отступ от нижнего края
+                        
+                        # Позиция скретч-полоссы
+                        scratch_position = (
+                            card_width_px - scratch_icon.width - horizontal_offset,  # Горизонтальная позиция справа
+                            card_height_px - scratch_icon.height - vertical_offset  # Вертикальная позиция снизу
+                        )
+                        
+                        # Накладываем иконку скретч-полоссы
+                        card_image.paste(scratch_icon, scratch_position, scratch_icon)
                     except Exception as e:
                         logging.error(f"Error processing scratch strip: {e}")
             
             elif extra == "Печатный номер":
+                # Получаем путь к базовому изображению
+                base_image_path = base_image.get(state["plastic"])
+                if not base_image_path or not os.path.exists(base_image_path):
+                    logging.error(f"Base image for plastic '{state['plastic']}' not found")
+                    # Если базовое изображение не найдено, создаем placeholder
+                    card_image = Image.new("RGBA", (card_width_px, card_height_px), color=(255, 255, 255))
+                else:
+                    try:
+                        # Загружаем базовое изображение
+                        card_image = Image.open(base_image_path).convert("RGBA")
+                        card_image = card_image.resize((card_width_px, card_height_px), resample=Image.Resampling.LANCZOS)
+                    except Exception as e:
+                        logging.error(f"Error opening base image {base_image_path}: {e}")
+                        # Если возникла ошибка при загрузке базового изображения, создаем placeholder
+                        card_image = Image.new("RGBA", (card_width_px, card_height_px), color=(255, 255, 255))
+
+                # Определяем границы карты
+                border_radius = 10 * pixel_per_mm  # Радиус закругления углов
+                mask = Image.new('L', card_image.size, 0)
+                draw_mask = ImageDraw.Draw(mask)
+                draw_mask.rounded_rectangle((0, 0, card_width_px - 1, card_height_px - 1), radius=border_radius, fill=255)
+                # Применяем маску для закругления углов
+                card_image.putalpha(mask)
+
+                # Создаем объект для рисования
+                draw = ImageDraw.Draw(card_image)
+
                 # Логика для "Печатный номер"
-                print_number_position = element_positions.get(extra, (50, 50))
+                print_number_position = (50, 50)  # Позиция по умолчанию
                 font = ImageFont.load_default()
-                
+
                 # Рисуем несколько прямоугольников с текстом
                 num_rectangles = 4  # Четыре группы цифр
-                rect_width = 50  # Ширина каждого прямоугольника
-                rect_height = 20  # Высота каждого прямоугольника
-                
+                rect_width = 50     # Ширина каждого прямоугольника
+                rect_height = 20    # Высота каждого прямоугольника
+
                 # Расчет начальной позиции
                 start_x = print_number_position[0]
                 start_y = print_number_position[1]
-                
+
                 # Рассчитываем интервал между прямоугольниками
                 total_space = card_width_px - (num_rectangles * rect_width)
                 spacing = total_space / (num_rectangles + 1)
-                
+
                 for i in range(num_rectangles):
                     rect_x = int(start_x + (i + 1) * spacing + i * rect_width)
                     rect_y = start_y
@@ -492,7 +509,7 @@ def create_card_image(chat_id):
                     )
                     
                     # Добавляем текст внутри прямоугольника
-                    text = "0000"  # Например, четыре цифры
+                    text = "xxxx"  # Текст внутри прямоугольника
                     text_bbox = draw.textbbox((rect_x, rect_y), text, font=font)
                     draw.text(
                         (
@@ -500,11 +517,119 @@ def create_card_image(chat_id):
                             rect_y + 5
                         ),
                         text,
-                        fill="black",
+                        fill="black",  # Черный цвет текста
                         font=font
                     )
+        
+            elif extra == "Полоса для подписи":
+                signature_strip_path = extra_icons.get("Полоса для подписи")
+                if signature_strip_path and os.path.exists(signature_strip_path):
+                    try:
+                        # Открываем иконку полосы для подписи
+                        signature_strip = Image.open(signature_strip_path).convert("RGBA")
+                        
+                        # Масштабируем до нужных размеров
+                        signature_strip = signature_strip.resize((150, 30))
+                        
+                        # Параметры размещения полосы для подписи
+                        horizontal_offset = 10  # Отступ от левого края
+                        vertical_offset = 10   # Отступ от нижнего края
+                        
+                        # Позиция полосы для подписи
+                        signature_position = (
+                            horizontal_offset,  # Горизонтальная позиция слева
+                            card_height_px // 2 - (signature_strip.height // 2)  # Вертикальная позиция по центру
+                        )
+                        
+                        # Накладываем иконку полосы для подписи
+                        card_image.paste(signature_strip, signature_position, signature_strip)
+                    except Exception as e:
+                        logging.error(f"Error processing signature strip: {e}")
+
+            elif extra == "Штрих-код":
+
+                # Получаем путь к базовому изображению
+                base_image_path = base_image.get(state["plastic"])
+                if not base_image_path or not os.path.exists(base_image_path):
+                    logging.error(f"Base image for plastic '{state['plastic']}' not found")
+                    # Если базовое изображение не найдено, создаем placeholder
+                    card_image = Image.new("RGBA", (card_width_px, card_height_px), color=(255, 255, 255))
+                else:
+                    try:
+                        # Загружаем базовое изображение
+                        card_image = Image.open(base_image_path).convert("RGBA")
+                        card_image = card_image.resize((card_width_px, card_height_px), resample=Image.Resampling.LANCZOS)
+                    except Exception as e:
+                        logging.error(f"Error opening base image {base_image_path}: {e}")
+                        # Если возникла ошибка при загрузке базового изображения, создаем placeholder
+                        card_image = Image.new("RGBA", (card_width_px, card_height_px), color=(255, 255, 255))
+
+                # Определяем границы карты
+                border_radius = 10 * pixel_per_mm  # Радиус закругления углов
+                mask = Image.new('L', card_image.size, 0)
+                draw_mask = ImageDraw.Draw(mask)
+                draw_mask.rounded_rectangle((0, 0, card_width_px - 1, card_height_px - 1), radius=border_radius, fill=255)
+                # Применяем маску для закругления углов
+                card_image.putalpha(mask)
+
+                # Создаем объект для рисования
+                draw = ImageDraw.Draw(card_image)
+
+                # Логика для штрих-кода
+                barcode_icon_path = extra_icons.get("Штрих-код")
+                if barcode_icon_path and os.path.exists(barcode_icon_path):
+                    try:
+                        # Открываем иконку штрих-кода
+                        barcode_icon = Image.open(barcode_icon_path).convert("RGBA")
+                        
+                        # Масштабируем до нужных размеров
+                        barcode_icon = barcode_icon.resize((150, 30))
+                        
+                        # Параметры размещения штрих-кода
+                        horizontal_offset = 5  # Отступ от левого края
+                        vertical_offset = 10   # Отступ от верхнего края
+                        
+                        # Позиция штрих-кода
+                        barcode_position = (
+                            horizontal_offset,  # Горизонтальная позиция слева
+                            vertical_offset     # Вертикальная позиция сверху
+                        )
+                        
+                        # Накладываем иконку штрих-кода
+                        card_image.paste(barcode_icon, barcode_position, barcode_icon)
+                    except Exception as e:
+                        logging.error(f"Error processing barcode: {e}")
+           
+            # Проверяем, есть ли дополнение "Отверстия в карте (за каждое)"
+            elif "Отверстия в карте (за каждое)" in state["extras"]:
+                for extra in state["extras"]:
+                    if extra == "Отверстия в карте (за каждое)":
+                        hole_icon_path = extra_icons.get("Отверстия в карте (за каждое)")
+                        if hole_icon_path and os.path.exists(hole_icon_path):
+                            try:
+                                # Открываем иконку отверстий
+                                hole_icon = Image.open(hole_icon_path).convert("RGBA")
+                                # Масштабируем до нужных размеров
+                                hole_icon = hole_icon.resize((30, 30))
+                                
+                                # Параметры размещения отверстий
+                                horizontal_offset = 10  # Отступ от левого края
+                                card_center_y = card_height_px // 2  # Центральная часть карты по высоте
+                                
+                                # Позиция центрального отверстия
+                                hole_position = (
+                                    horizontal_offset,  # Фиксированный горизонтальный отступ
+                                    card_center_y - (hole_icon.height // 2)  # Вертикальная позиция по центру
+                                )
+                                
+                                # Накладываем иконку отверстия
+                                card_image.paste(hole_icon, hole_position, hole_icon)
+                            except Exception as e:
+                                logging.error(f"Error processing holes: {e}")
+                
+            
         except Exception as e:
-            logging.error(f"Error processing icon '{icon_path}': {e}")
+            logging.error(f"Error processing icon: {e}")
 
     # Сохраняем изображение
     result_path = os.path.join(BASE_IMAGE_DIR, f"{chat_id}_temp_card.png")
@@ -719,17 +844,50 @@ def calculate_cost(chat_id):
 
         # Создание изображения
         try:
+            # Создаем изображение карты
             image_path = create_card_image(chat_id)
+            # Используем временный файл для отправки изображения
             with temporary_file(image_path) as photo_path:
                 with open(photo_path, 'rb') as photo:
-                    bot.send_photo(
-                        chat_id,
-                        photo,
-                        caption=(
-                            f"Итоговая стоимость для {lower_bound} карточек: {total_cost_lower} Р\n"
-                            f"Итоговая стоимость для {upper_bound} карточек: {total_cost_upper} Р"
+                    # Проверяем, добавлен ли элемент "Магнитный винил (Магниты)"
+                    if "Магнитный винил (Магниты)" in state.get("extras", []):
+                        bot.send_photo(
+                            chat_id,
+                            photo,
+                            caption=(
+                                f"Итоговая стоимость для {lower_bound} карточек: {total_cost_lower} Р\n"
+                                f"Итоговая стоимость для {upper_bound} карточек: {total_cost_upper} Р\n"
+                                f"Магнитный винил (Магниты) будет добавлен в итоговой вариант физического варианта карточки, так как добавить это в генерацию изображения получилось только так."
+                            )
                         )
-                    )
+                    elif "Фактурное покрытие" in state.get("extras",[]):
+                        bot.send_photo(
+                            chat_id,
+                            photo,
+                            caption=
+                            f"Итоговая стоимость для {lower_bound} карточек: {total_cost_lower} Р\n"
+                            f"Итоговая стоимость для {upper_bound} карточек: {total_cost_upper} Р\n"
+                            f"Фактурное покрытие будет добавлено в итоговой вариант физического варианта карточки, так как добавить это в генерацию изображения пока что не получается."
+                        )
+                    elif "Эмбоссирование и типирование" in state.get("extras",[]):
+                        bot.send_photo(
+                            chat_id,
+                            photo,
+                            caption=
+                            f"Итоговая стоимость для {lower_bound} карточек: {total_cost_lower} Р\n"
+                            f"Итоговая стоимость для {upper_bound} карточек: {total_cost_upper} Р\n"
+                            f"Эмбоссирование и типирование будет добавлено в итоговой вариант физического варианта карточки, так как добавить это в генерацию изображения пока что не получается."
+                        )
+                    else:
+                        bot.send_photo(
+                            chat_id,
+                            photo,
+                            caption=(
+                                f"Итоговая стоимость для {lower_bound} карточек: {total_cost_lower} Р\n"
+                                f"Итоговая стоимость для {upper_bound} карточек: {total_cost_upper} Р"
+                            )
+                        )
+
         except Exception as e:
             logging.error(f"Error creating image: {e}")
             bot.send_message(
