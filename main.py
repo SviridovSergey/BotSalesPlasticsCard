@@ -290,7 +290,7 @@ extra_icons = {
     "Отверстия в карте (за каждое)": os.path.join(BASE_IMAGE_DIR, "hole.png"),
     "Фактурное покрытие": os.path.join(BASE_IMAGE_DIR, "texture.png"),
     "Эмбоссирование и типирование": os.path.join(BASE_IMAGE_DIR, "emboss.png"),
-    "Тиснение (фальгирование)": os.path.join(BASE_IMAGE_DIR, ""),
+    #"Тиснение (фальгирование)": os.path.join(BASE_IMAGE_DIR, ""),
     "Скретч-полосса (стираемый слой)": os.path.join(BASE_IMAGE_DIR, "scratch.png"),
     "Полоса для подписи": os.path.join(BASE_IMAGE_DIR, "signature.png")
 }
@@ -327,7 +327,6 @@ def cleanup_temp_file():
                     logging.info(f"Deleted temporary file : {file_path}")
                 except Exception as e:
                     logging.error(f"Error deleting file {file_path} : {e}")
-
 
 def create_placeholder(color, size = (600,400)):
     image=Image.new("RGBA", size,color)
@@ -378,7 +377,7 @@ def create_card_image(chat_id):
         "Отверстия в карте (за каждое)": (card_width_px - 150, card_height_px // 2),  # Справа по центру
         "Фактурное покрытие": (50, 50),  # Слева сверху
         "Эмбоссирование и типирование": (card_width_px // 2, 50),  # По центру сверху
-        "Тиснение (фальгирование)": (card_width_px // 2, card_height_px // 2),  # Центр
+        #"Тиснение (фальгирование)": (card_width_px // 2, card_height_px // 2),  # Центр
         "Скретч-полосса (стираемый слой)": (card_width_px - 150, 50),  # Справа сверху
     }
     
@@ -399,9 +398,7 @@ def create_card_image(chat_id):
             
             # Получаем позицию для текущего элемента
             position = element_positions.get(extra, (50, 50))  # По умолчанию (50, 50)
-            
-            # Накладываем иконку на базовое изображение
-            
+                        
             # Специфическая логика для элементов
             if extra == "Магнитная полоса с кодированием":
                 magnetic_strip_path = extra_icons.get("Магнитная полоса с кодированием")
@@ -855,36 +852,64 @@ def calculate_cost(chat_id):
                             chat_id,
                             photo,
                             caption=(
-                                f"Итоговая стоимость для {lower_bound} карточек: {total_cost_lower} Р\n"
-                                f"Итоговая стоимость для {upper_bound} карточек: {total_cost_upper} Р\n"
-                                f"Магнитный винил (Магниты) будет добавлен в итоговой вариант физического варианта карточки, так как добавить это в генерацию изображения получилось только так."
+                            f"Итоговая стоимость для {lower_bound} карточек: {total_cost_lower} Р\n"
+                            f"Итоговая стоимость для {upper_bound} карточек: {total_cost_upper} Р\n"
+                            f"Магнитный винил (Магниты) будет добавлен в итоговой вариант физического варианта карточки."
+                            "По поводу заказа писать сюда: @Olga_rn"
                             )
                         )
                     elif "Фактурное покрытие" in state.get("extras",[]):
                         bot.send_photo(
                             chat_id,
                             photo,
-                            caption=
+                            caption=(
                             f"Итоговая стоимость для {lower_bound} карточек: {total_cost_lower} Р\n"
                             f"Итоговая стоимость для {upper_bound} карточек: {total_cost_upper} Р\n"
-                            f"Фактурное покрытие будет добавлено в итоговой вариант физического варианта карточки, так как добавить это в генерацию изображения пока что не получается."
+                            f"Фактурное покрытие будет добавлено в итоговой вариант физического варианта карточки."
+                            "По поводу заказа писать сюда: @Olga_rn"
+                            )
                         )
                     elif "Эмбоссирование и типирование" in state.get("extras",[]):
                         bot.send_photo(
                             chat_id,
                             photo,
-                            caption=
+                            caption=(
                             f"Итоговая стоимость для {lower_bound} карточек: {total_cost_lower} Р\n"
                             f"Итоговая стоимость для {upper_bound} карточек: {total_cost_upper} Р\n"
-                            f"Эмбоссирование и типирование будет добавлено в итоговой вариант физического варианта карточки, так как добавить это в генерацию изображения пока что не получается."
+                            f"Эмбоссирование и типирование будет добавлено в итоговой вариант физического варианта карточки.\n"
+                            "По поводу заказа писать сюда: @Olga_rn"   
+                            )
+                        )
+                    elif "Тиснение (фальгирование)" in state.get("extras",[]):
+                        bot.send_photo(
+                            chat_id,
+                            photo,
+                            caption=(
+                            f"Итоговая стоимость для {lower_bound} карточек: {total_cost_lower} Р\n"
+                            f"Итоговая стоимость для {upper_bound} карточек: {total_cost_upper} Р\n"
+                            f"Тиснение (фальгирование) будет добавлено в итоговой вариант физического варианта карточки.\n"
+                            "По поводу заказа писать сюда: @Olga_rn"
+                            )
+                        )
+                    elif "Тиснение (фальгирование)" in state.get("extras",[]):
+                        bot.send_photo(
+                            chat_id,
+                            photo,
+                            caption=(
+                            f"Итоговая стоимость для {lower_bound} карточек: {total_cost_lower} Р\n"
+                            f"Итоговая стоимость для {upper_bound} карточек: {total_cost_upper} Р\n"
+                            f"Тиснение (фальгирование) будет добавлено в итоговой вариант физического варианта карточки.\n"
+                            "По поводу заказа писать сюда: @Olga_rn"
+                            )
                         )
                     else:
                         bot.send_photo(
                             chat_id,
                             photo,
                             caption=(
-                                f"Итоговая стоимость для {lower_bound} карточек: {total_cost_lower} Р\n"
-                                f"Итоговая стоимость для {upper_bound} карточек: {total_cost_upper} Р"
+                            f"Итоговая стоимость для {lower_bound} карточек: {total_cost_lower} Р\n"
+                            f"Итоговая стоимость для {upper_bound} карточек: {total_cost_upper} Р\n"
+                            "По поводу заказа писать сюда: @Olga_rn"
                             )
                         )
 
@@ -894,7 +919,8 @@ def calculate_cost(chat_id):
                 chat_id,
                 (
                     f"Итоговая стоимость для {lower_bound} карточек: {total_cost_lower} Р\n"
-                    f"Итоговая стоимость для {upper_bound} карточек: {total_cost_upper} Р"
+                    f"Итоговая стоимость для {upper_bound} карточек: {total_cost_upper} Р\n"
+                    "По поводу заказа писать сюда: @Olga_rn"
                 )
             )
 
