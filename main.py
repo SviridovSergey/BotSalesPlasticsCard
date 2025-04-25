@@ -15,7 +15,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Токен бота
-TOKEN="8086181539:AAG8tdzVKEQONpcb9F8tldJiKaXxu9nypGs"
+TOKEN = "8086181539:AAG8tdzVKEQONpcb9F8tldJiKaXxu9nypGs"
 bot = telebot.TeleBot(TOKEN)
 
 # Глобальный словарь для хранения состояния пользователей
@@ -215,11 +215,11 @@ button20 = types.KeyboardButton("Тиснение (фальгирование)")
 button21 = types.KeyboardButton("Скретч-полосса (стираемый слой)")
 button22 = types.KeyboardButton("Полоса для подписи")
 button23 = types.KeyboardButton("Готово")
-logging.info("Buttons command personal_items are initialized")
+logging.info("Buttons command pers are initialized")
 
 markup_pers.add(button13, button14, button15, button16, button17,
                  button18, button19, button20, button21, button22,button23)
-logging.info("Buttons are pushed  to telegram(personal_items)")
+logging.info("Buttons are pushed  to telegram(pers)")
 
 #кнопки для выбора типа чипа
 markup_chip_type=types.ReplyKeyboardMarkup(resize_keyboard=True)
@@ -254,7 +254,7 @@ logging.info("Buttons for choise of plastic are initialized")
 markup_plastic.add(button_plastic_1,button_plastic_2,button_plastic_3,button_plastic_4)
 logging.info("Buttons are pushed  to telegram(choise of plastic)")
 
-BASE_IMAGE_DIR = "C:\\Users\\abcda\\vscode\\fulprojects\\tgbot\\image"
+BASE_IMAGE_DIR = "D:\\vscode\\BotSalesPlasticsCard\\image"
 MAX_FILE_AGE=10
 TEMP_FILE_PATTERN=re.compile(r"^\d+_\w+\.png$")  # Например: 1231091537_card.png)
 
@@ -268,8 +268,6 @@ card_height_px = card_height_mm * pixel_per_mm
 # Определяем границы карты
 border_radius = 10 * pixel_per_mm  # Радиус закругления углов
 logging.info("Constatns are initialized")
-
-
 if not os.path.exists(BASE_IMAGE_DIR):
     os.makedirs("image")
 
@@ -295,7 +293,7 @@ extra_icons = {
 def periodic_cleanup():
     while True:
         try:
-            cleanup_temp_files()
+            cleanup_temp_file()
             time.sleep(10)
         except Exception as e:
             logging.error(f"Error during periodic cleanup: {e}")
@@ -312,19 +310,18 @@ def temporary_file(path):
             except Exception as e:
                 logging.error(f"Error auto-deleting file {path} : {e}")
 
-def cleanup_temp_files():
-    while True:
-        try:
-            for file_name in os.listdir(BASE_IMAGE_DIR):
-                file_path = os.path.join(BASE_IMAGE_DIR, file_name)
-                if os.path.isfile(file_path) and TEMP_FILE_PATTERN.match(file_name):
-                    file_age = time.time() - os.path.getmtime(file_path)
-                    if file_age > MAX_FILE_AGE * 60:  # Удаляем файлы старше MAX_FILE_AGE минут
-                        os.remove(file_path)
-                        logging.info(f"Deleted temporary file: {file_path}")
-        except Exception as e:
-            logging.error(f"Error during cleanup: {e}")
-        time.sleep(60)  # Проверяем каждую минуту
+def cleanup_temp_file():
+    current_time=time.time()
+    for filename in os.listdir("image"):
+        file_path=os.path.join("image",filename)
+
+        if os.path.isfile(file_path) and TEMP_FILE_PATTERN.match(filename):
+            if (current_time - os.path.getctime(file_path)) > MAX_FILE_AGE:
+                try:
+                    os.remove(file_path)
+                    logging.info(f"Deleted temporary file : {file_path}")
+                except Exception as e:
+                    logging.error(f"Error deleting file {file_path} : {e}")
 
 def create_placeholder(color, size = (600,400)):
     image=Image.new("RGBA", size,color)
@@ -680,6 +677,7 @@ def send_welcome(message):
         "/calculate - Рассчитать общую стоимость\n\n\n"
         "Чтобы начать, выберите количество карточек:"
     )
+
     # Отправка полного текста отдельным сообщением
     bot.send_message(chat_id, full_text, parse_mode='HTML', reply_markup=markup_start)
 
@@ -790,7 +788,7 @@ def calculate_chip_cost(chat_id):
     bot.send_message(chat_id, f"Стоимость карт с чипом {chip_type} ({chip_quantity}): {price} Р")
     logging.info(f"User {chat_id} calculated chip card cost: {price}")
 
-# Обработчик команды /personal_items
+# Обработчик команды /pers
 @bot.message_handler(commands=["personal_items"])
 def pers(message):
     chat_id = message.chat.id
@@ -798,11 +796,11 @@ def pers(message):
         user_state[chat_id] = {}
     if "extras" not in user_state[chat_id]:
         user_state[chat_id]["extras"] = []
-    logging.info("user-state params has initialized (personal_items)")
+    logging.info("user-state params has initialized (pers)")
     bot.send_message(chat_id, "Выберите дополнительный материал:", reply_markup=markup_pers)
     logging.info("Command /pers executed")
 
-# Обработчик текстовых сообщений для команды /personal_items
+# Обработчик текстовых сообщений для команды /pers
 @bot.message_handler(func=lambda message: message.text in [
     "Штрих-код",
     "Магнитная полоса с кодированием",
@@ -1000,7 +998,7 @@ def handle_error(message):
     logging.info("handle_error has executed ;(")
     logging.error(f"Unknown command received: {message.text}")
 
-cleanup_thread = threading.Thread(target=cleanup_temp_files, daemon=True)
+cleanup_thread=threading.Thread(target=periodic_cleanup,daemon=True)
 cleanup_thread.start()
 
 # Основная функция запуска бота
@@ -1014,8 +1012,7 @@ def main() -> None:
 
     # Запускаем polling
     logger.info("Bot started with polling")
-    cleanup_temp_files()
+    cleanup_temp_file()
     bot.polling()
-
 if __name__ == "__main__":
     main()
