@@ -15,17 +15,12 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Токен бота
-TOKEN = "8086181539:AAG8tdzVKEQONpcb9F8tldJiKaXxu9nypGs"
+TOKEN="8086181539:AAG8tdzVKEQONpcb9F8tldJiKaXxu9nypGs"
 bot = telebot.TeleBot(TOKEN)
 
 # Глобальный словарь для хранения состояния пользователей
 user_state = {}
 
-#вид пластика:белый, серебрянный, золотой, прозрачный(стоимость 1 карты от кол-ва), добавить нужен ли 
-# дизайн макета(+ к стоимости)
-#сначало выбирается пластик и потом идет по кол-ву(от 100 до 200 и тд), потом до элементы(qr code и тд)
-#общ стоимость считать
-# Структура данных с ценами
 prices = {
     "от 100 до 200 карточек": {
         "Белый": 19.50,
@@ -220,11 +215,11 @@ button20 = types.KeyboardButton("Тиснение (фальгирование)")
 button21 = types.KeyboardButton("Скретч-полосса (стираемый слой)")
 button22 = types.KeyboardButton("Полоса для подписи")
 button23 = types.KeyboardButton("Готово")
-logging.info("Buttons command pers are initialized")
+logging.info("Buttons command personal_items are initialized")
 
 markup_pers.add(button13, button14, button15, button16, button17,
                  button18, button19, button20, button21, button22,button23)
-logging.info("Buttons are pushed  to telegram(pers)")
+logging.info("Buttons are pushed  to telegram(personal_items)")
 
 #кнопки для выбора типа чипа
 markup_chip_type=types.ReplyKeyboardMarkup(resize_keyboard=True)
@@ -272,6 +267,8 @@ card_height_px = card_height_mm * pixel_per_mm
 
 # Определяем границы карты
 border_radius = 10 * pixel_per_mm  # Радиус закругления углов
+logging.info("Constatns are initialized")
+
 
 if not os.path.exists(BASE_IMAGE_DIR):
     os.makedirs("image")
@@ -298,7 +295,7 @@ extra_icons = {
 def periodic_cleanup():
     while True:
         try:
-            cleanup_temp_file()
+            cleanup_temp_files()
             time.sleep(10)
         except Exception as e:
             logging.error(f"Error during periodic cleanup: {e}")
@@ -315,18 +312,19 @@ def temporary_file(path):
             except Exception as e:
                 logging.error(f"Error auto-deleting file {path} : {e}")
 
-def cleanup_temp_file():
-    current_time=time.time()
-    for filename in os.listdir("image"):
-        file_path=os.path.join("image",filename)
-
-        if os.path.isfile(file_path) and TEMP_FILE_PATTERN.match(filename):
-            if (current_time - os.path.getctime(file_path)) > MAX_FILE_AGE:
-                try:
-                    os.remove(file_path)
-                    logging.info(f"Deleted temporary file : {file_path}")
-                except Exception as e:
-                    logging.error(f"Error deleting file {file_path} : {e}")
+def cleanup_temp_files():
+    while True:
+        try:
+            for file_name in os.listdir(BASE_IMAGE_DIR):
+                file_path = os.path.join(BASE_IMAGE_DIR, file_name)
+                if os.path.isfile(file_path) and TEMP_FILE_PATTERN.match(file_name):
+                    file_age = time.time() - os.path.getmtime(file_path)
+                    if file_age > MAX_FILE_AGE * 60:  # Удаляем файлы старше MAX_FILE_AGE минут
+                        os.remove(file_path)
+                        logging.info(f"Deleted temporary file: {file_path}")
+        except Exception as e:
+            logging.error(f"Error during cleanup: {e}")
+        time.sleep(60)  # Проверяем каждую минуту
 
 def create_placeholder(color, size = (600,400)):
     image=Image.new("RGBA", size,color)
@@ -642,21 +640,49 @@ def send_welcome(message):
         user_state[chat_id]["quantity"] = None
         user_state[chat_id]["plastic"] = None
         user_state[chat_id]["extras"] = []
+        logging.info("user-state params has initialized (Start)")
 
-    # Новое приветственное сообщение
-    welcome_message = (
-        "Добро пожаловать! Этот бот поможет вам рассчитать стоимость пластиковых карт.\n\n"
+    # Путь к изображению
+    photo_path = os.path.join(BASE_IMAGE_DIR, "startmessagecapction.jpg")
+
+    # Короткая подпись для фото
+    caption = "Добро пожаловать!"
+
+    # Отправка фото с подписью
+    with open(photo_path, 'rb') as photo_file:
+        bot.send_photo(chat_id, photo_file, caption=caption, parse_mode='HTML')
+
+    # Полный текст для отдельного сообщения
+    full_text = (
+        "Хотим представиться и познакомиться с вами!\n\n"
+        "Мы являемся партнерами проверенного годами завода по\n"
+        "производству пластиковых карт, и создали семейный\n"
+        "бизнес для того, чтобы быть полезными и помогать Вам\n"
+        "развивать свое дело, искать новую аудиторию и удерживать ее!\n"
+        "Что в конечном итоге будет приводить к увеличению прибыли\n\n"
+        "Мы компания по производству и поставке пластиковых карт, разработке\n"
+        "Выпускаем:\n\n"
+        "- Визитки на пластике для Ваших клиентов, которые цепляют внешним видом.\n"
+        "- Дисконтные, бонусные, клубные карты\n"
+        "- Изготовление бейджей, пропусков, ключей\n"
+        "- Подарочные карты и сертификаты\n"
+        "Наш сайт pink-card.ru\n\n"
+        "<b> Этот бот поможет вам рассчитать стоимость пластиковых карт.</b>\n\n"
+        "Итоговая стоимость карты зависит от:\n"
+        "1) Вида пластика (он может быть белый, золотой, серебряный и золотой)\n"
+        "2) От количества заказанных карт (чем больше объем, тем дешевле)\n"
+        "От дополнительных функций на карте (qr-код, магнитная полоса, серийный номер и прочее)\n\n"
+        "Вы всегда можете получить консультацию и посмотреть портфолио на нашем канале\n"
+        "https://t.me/pink_cardrnd\n\n"
         "Доступные команды:\n"
         "/start - Начать работу с ботом\n"
-        "/pers - Выбрать дополнительные материалы\n"
-        "/calculate - Рассчитать общую стоимость\n\n"
+        "/personal_items - Выбрать дополнительные материалы\n"
+        "/calculate - Рассчитать общую стоимость\n\n\n"
         "Чтобы начать, выберите количество карточек:"
     )
-    bot.reply_to(
-        message,
-        welcome_message,
-        reply_markup=markup_start,
-    )
+    # Отправка полного текста отдельным сообщением
+    bot.send_message(chat_id, full_text, parse_mode='HTML', reply_markup=markup_start)
+
     logging.info("Command /start executed")
 
 # Обработчик текстовых сообщений для команды /start
@@ -676,11 +702,13 @@ def handle_quantity(message):
     if chat_id not in user_state:
         user_state[chat_id] = {}
     user_state[chat_id]["quantity"] = message.text
+    logging.info("user-state params has initialized (Start\ handle1)")
     bot.send_message(
         chat_id,
         "Теперь выберите тип пластика:",
         reply_markup=markup_plastic,
     )
+    logging.info("handler command \ start executed")
     logging.info(f"User {chat_id} selected quantity: {message.text}")
 
 #обработчик выбора пластика
@@ -695,11 +723,13 @@ def handle_plastic(message):
     if chat_id not in user_state:
         user_state[chat_id] = {}  # Инициализация, если пользователь отсутствует
     user_state[chat_id]["plastic"] = message.text
+    logging.info("user-state params has initialized (Start\ handle2)")
     bot.send_message(
         chat_id,
         "Хотите добавить дополнительные элементы? Выберите или нажмите 'Готово':",
         reply_markup=markup_pers,
     )
+    logging.info("handle plastic command \ start executed")
     logging.info(f"User {chat_id} selected plastic: {message.text}")
 
 #обработчик команы /chipcards
@@ -710,6 +740,7 @@ def chipcards(message):
         user_state[chat_id] = {}
     user_state[chat_id]["chip_type"] = None
     user_state[chat_id]["chip_quantity"] = None
+    logging.info("user-state params has initialized (chipcards)")
     bot.send_message(chat_id, "Выберите тип чипа:", reply_markup=markup_chip_type)
     logging.info("Command /chipcards executed")
 
@@ -720,10 +751,12 @@ def handle_chip_type(message):
     if chat_id not in user_state:
         user_state[chat_id] = {}
     user_state[chat_id]["chip_type"] = message.text
+    logging.info("user-state params has initialized (chipcards\ handle1)")
     bot.send_message(chat_id, "Теперь выберите количество карт с чипами:", reply_markup=markup_chip_quantity)
+    logging.info("handle chip_type command \ chipcards executed")
     logging.info(f"User {chat_id} selected chip type: {message.text}")
 
-#обработчик выбора кол-ва карт с чипами    
+#обработчик выбора кол-ва карт с чипами
 @bot.message_handler(func=lambda message: message.text in [
     "от 10 до 100",
     "от 101 до 500",
@@ -739,7 +772,9 @@ def handle_chip_quantity(message):
         return
     user_state[chat_id]["chip_quantity"] = message.text
     bot.send_message(chat_id, f"Вы выбрали {message.text} карт с чипом {user_state[chat_id]['chip_type']}.")
+    logging.info(f"User chose {message.text} and {user_state[chat_id]["chyp_type"]}")
     calculate_chip_cost(chat_id)
+    logging.info("Func calculate_chip_cost executed")
 
 def calculate_chip_cost(chat_id):
     state = user_state.get(chat_id)
@@ -755,18 +790,19 @@ def calculate_chip_cost(chat_id):
     bot.send_message(chat_id, f"Стоимость карт с чипом {chip_type} ({chip_quantity}): {price} Р")
     logging.info(f"User {chat_id} calculated chip card cost: {price}")
 
-# Обработчик команды /pers
-@bot.message_handler(commands=["pers"])
+# Обработчик команды /personal_items
+@bot.message_handler(commands=["personal_items"])
 def pers(message):
     chat_id = message.chat.id
     if chat_id not in user_state:
         user_state[chat_id] = {}
     if "extras" not in user_state[chat_id]:
         user_state[chat_id]["extras"] = []
+    logging.info("user-state params has initialized (personal_items)")
     bot.send_message(chat_id, "Выберите дополнительный материал:", reply_markup=markup_pers)
     logging.info("Command /pers executed")
 
-# Обработчик текстовых сообщений для команды /pers
+# Обработчик текстовых сообщений для команды /personal_items
 @bot.message_handler(func=lambda message: message.text in [
     "Штрих-код",
     "Магнитная полоса с кодированием",
@@ -787,7 +823,6 @@ def handle_pers_buttons(message):
         user_state[chat_id] = {}
     if "extras" not in user_state[chat_id]:
         user_state[chat_id]["extras"] = []
-
     if message.text == "Готово":
         calculate_cost(chat_id)
         return
@@ -855,8 +890,12 @@ def calculate_cost(chat_id):
                             f"Итоговая стоимость для {lower_bound} карточек: {total_cost_lower} Р\n"
                             f"Итоговая стоимость для {upper_bound} карточек: {total_cost_upper} Р\n"
                             f"Магнитный винил (Магниты) будет добавлен в итоговой вариант физического варианта карточки."
-                            "По поводу заказа писать сюда: @Olga_rn"
-                            )
+                            "По поводу заказа писать сюда: @Olga_rn\n"
+                            "Напоминание! Это всего-лишь макет\демо реальной карточки.\n"
+                            "Вы всегда можете получить консультацию и посмотреть портфолио на нашем канале\n"
+                            "<a href='https://t.me/pink_cardrnd'>https://t.me/pink_cardrnd</a>\n"
+                            "Спасибо.\n"
+                            ),parse_mode='HTML'
                         )
                     elif "Фактурное покрытие" in state.get("extras",[]):
                         bot.send_photo(
@@ -866,8 +905,12 @@ def calculate_cost(chat_id):
                             f"Итоговая стоимость для {lower_bound} карточек: {total_cost_lower} Р\n"
                             f"Итоговая стоимость для {upper_bound} карточек: {total_cost_upper} Р\n"
                             f"Фактурное покрытие будет добавлено в итоговой вариант физического варианта карточки."
-                            "По поводу заказа писать сюда: @Olga_rn"
-                            )
+                            "По поводу заказа писать сюда: @Olga_rn\n"
+                            "Напоминание! Это всего-лишь макет\демо реальной карточки.\n"
+                            "Вы всегда можете получить консультацию и посмотреть портфолио на нашем канале\n"
+                            "<a href='https://t.me/pink_cardrnd'>https://t.me/pink_cardrnd</a>\n"
+                            "Спасибо.\n"
+                            ),parse_mode='HTML'
                         )
                     elif "Эмбоссирование и типирование" in state.get("extras",[]):
                         bot.send_photo(
@@ -877,8 +920,12 @@ def calculate_cost(chat_id):
                             f"Итоговая стоимость для {lower_bound} карточек: {total_cost_lower} Р\n"
                             f"Итоговая стоимость для {upper_bound} карточек: {total_cost_upper} Р\n"
                             f"Эмбоссирование и типирование будет добавлено в итоговой вариант физического варианта карточки.\n"
-                            "По поводу заказа писать сюда: @Olga_rn"   
-                            )
+                            "По поводу заказа писать сюда: @Olga_rn\n"
+                            "Напоминание! Это всего-лишь макет\демо реальной карточки.\n"
+                            "Вы всегда можете получить консультацию и посмотреть портфолио на нашем канале\n"
+                            "<a href='https://t.me/pink_cardrnd'>https://t.me/pink_cardrnd</a>\n"
+                            "Спасибо.\n"
+                            ),parse_mode='HTML'
                         )
                     elif "Тиснение (фальгирование)" in state.get("extras",[]):
                         bot.send_photo(
@@ -888,8 +935,12 @@ def calculate_cost(chat_id):
                             f"Итоговая стоимость для {lower_bound} карточек: {total_cost_lower} Р\n"
                             f"Итоговая стоимость для {upper_bound} карточек: {total_cost_upper} Р\n"
                             f"Тиснение (фальгирование) будет добавлено в итоговой вариант физического варианта карточки.\n"
-                            "По поводу заказа писать сюда: @Olga_rn"
-                            )
+                            "По поводу заказа писать сюда: @Olga_rn\n"
+                            "Напоминание! Это всего-лишь макет\демо реальной карточки.\n"
+                            "Вы всегда можете получить консультацию и посмотреть портфолио на нашем канале\n"
+                            "<a href='https://t.me/pink_cardrnd'>https://t.me/pink_cardrnd</a>\n"
+                            "Спасибо.\n"
+                            ),parse_mode='HTML'
                         )
                     elif "Тиснение (фальгирование)" in state.get("extras",[]):
                         bot.send_photo(
@@ -899,8 +950,12 @@ def calculate_cost(chat_id):
                             f"Итоговая стоимость для {lower_bound} карточек: {total_cost_lower} Р\n"
                             f"Итоговая стоимость для {upper_bound} карточек: {total_cost_upper} Р\n"
                             f"Тиснение (фальгирование) будет добавлено в итоговой вариант физического варианта карточки.\n"
-                            "По поводу заказа писать сюда: @Olga_rn"
-                            )
+                            "По поводу заказа писать сюда: @Olga_rn\n"
+                            "Напоминание! Это всего-лишь макет\демо реальной карточки.\n"
+                            "Вы всегда можете получить консультацию и посмотреть портфолио на нашем канале\n"
+                            "<a href='https://t.me/pink_cardrnd'>https://t.me/pink_cardrnd</a>\n"
+                            "Спасибо.\n"
+                            ),parse_mode='HTML'
                         )
                     else:
                         bot.send_photo(
@@ -909,8 +964,12 @@ def calculate_cost(chat_id):
                             caption=(
                             f"Итоговая стоимость для {lower_bound} карточек: {total_cost_lower} Р\n"
                             f"Итоговая стоимость для {upper_bound} карточек: {total_cost_upper} Р\n"
-                            "По поводу заказа писать сюда: @Olga_rn"
-                            )
+                            "По поводу заказа писать сюда: @Olga_rn\n"
+                            "Напоминание! Это всего-лишь макет\демо реальной карточки.\n"
+                            "Вы всегда можете получить консультацию и посмотреть портфолио на нашем канале\n"
+                            "<a href='https://t.me/pink_cardrnd'>https://t.me/pink_cardrnd</a>\n"
+                            "Спасибо.\n"
+                            ),parse_mode='HTML'
                         )
 
         except Exception as e:
@@ -921,7 +980,11 @@ def calculate_cost(chat_id):
                     f"Итоговая стоимость для {lower_bound} карточек: {total_cost_lower} Р\n"
                     f"Итоговая стоимость для {upper_bound} карточек: {total_cost_upper} Р\n"
                     "По поводу заказа писать сюда: @Olga_rn"
-                )
+                    "Напоминание! Это всего-лишь макет\демо реальной карточки.\n"
+                    "Вы всегда можете получить консультацию и посмотреть портфолио на нашем канале\n"
+                    "https://t.me/pink_cardrnd\n"
+                    "Спасибо.\n"
+                ),parse_mode='HTML'
             )
 
         logging.info(f"User {chat_id} calculated total cost: Lower bound {lower_bound}, Upper bound {upper_bound}")
@@ -934,9 +997,10 @@ def calculate_cost(chat_id):
 @bot.message_handler(func=lambda message: True)
 def handle_error(message):
     bot.reply_to(message, "Неизвестная команда. Пожалуйста, используйте кнопки.")
+    logging.info("handle_error has executed ;(")
     logging.error(f"Unknown command received: {message.text}")
 
-cleanup_thread=threading.Thread(target=periodic_cleanup,daemon=True)
+cleanup_thread = threading.Thread(target=cleanup_temp_files, daemon=True)
 cleanup_thread.start()
 
 # Основная функция запуска бота
@@ -950,7 +1014,8 @@ def main() -> None:
 
     # Запускаем polling
     logger.info("Bot started with polling")
-    cleanup_temp_file()
+    cleanup_temp_files()
     bot.polling()
+
 if __name__ == "__main__":
     main()
