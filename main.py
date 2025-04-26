@@ -15,7 +15,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Токен бота
-TOKEN = "8086181539:AAG8tdzVKEQONpcb9F8tldJiKaXxu9nypGs"
+TOKEN = "7744453337:AAGVaWWasrerdJ8V48sRtbvOGDLp0-ssz3M"
 bot = telebot.TeleBot(TOKEN)
 
 # Глобальный словарь для хранения состояния пользователей
@@ -254,7 +254,7 @@ logging.info("Buttons for choise of plastic are initialized")
 markup_plastic.add(button_plastic_1,button_plastic_2,button_plastic_3,button_plastic_4)
 logging.info("Buttons are pushed  to telegram(choise of plastic)")
 
-BASE_IMAGE_DIR = "D:\\vscode\\BotSalesPlasticsCard\\image"
+BASE_IMAGE_DIR = "C:\\Users\\abcda\\vscode\\fulprojects\\tgbot\\image"
 MAX_FILE_AGE=10
 TEMP_FILE_PATTERN=re.compile(r"^\d+_\w+\.png$")  # Например: 1231091537_card.png)
 
