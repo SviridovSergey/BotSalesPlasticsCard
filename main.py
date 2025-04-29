@@ -10,6 +10,8 @@ from PIL import Image,ImageDraw,ImageFont
 from pathlib import Path
 # Настройка логирования
 logging.basicConfig(
+    filename='bot.log',
+    level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
 )
 logger = logging.getLogger(__name__)
