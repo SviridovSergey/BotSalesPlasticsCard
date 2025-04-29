@@ -7,7 +7,7 @@ import threading
 from contextlib import contextmanager
 from telebot import types
 from PIL import Image,ImageDraw,ImageFont
-
+from pathlib import Path
 # Настройка логирования
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
@@ -254,7 +254,11 @@ logging.info("Buttons for choise of plastic are initialized")
 markup_plastic.add(button_plastic_1,button_plastic_2,button_plastic_3,button_plastic_4)
 logging.info("Buttons are pushed  to telegram(choise of plastic)")
 
-BASE_IMAGE_DIR = "C:\\Users\\abcda\\vscode\\fulprojects\\tgbot\\image"
+# Определение базовой директории
+BASE_DIR = Path(__file__).parent
+logging.info(f"BASE_DIR : {BASE_DIR}")
+BASE_IMAGE_DIR = BASE_DIR / "image"
+BASE_IMAGE_DIR = str(BASE_IMAGE_DIR)
 MAX_FILE_AGE=10
 TEMP_FILE_PATTERN=re.compile(r"^\d+_\w+\.png$")  # Например: 1231091537_card.png)
 
